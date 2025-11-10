@@ -1,0 +1,25 @@
+# ---- Sanjar Raximjonov: Prompt-Tuned ViT Requirements ----
+
+# Core ML framework
+torch>=2.0
+torchvision>=0.15
+timm>=0.9
+
+# Data handling
+numpy
+pandas
+albumentations
+
+# Training utils
+tqdm
+PyYAML
+
+# Visualization
+matplotlib
+opencv-python
+
+# Metrics
+scikit-learn
+
+# (Optional logging)
+wandb
