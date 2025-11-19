@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Data folders (large datasets)
+data/
+CVC-ClinicDB/
+kvasir-dataset-v2/
+
+# Experiment outputs
+experiments/checkpoints/
+*.pt
+
+# Images (dataset), but sample_images is allowed
+*.tif
+*.tiff
+*.png
+*.jpg
+
+# Allow sample images folder
+!sample_images/*.jpg
+!sample_images/*.png
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/
