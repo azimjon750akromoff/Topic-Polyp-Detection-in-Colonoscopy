@@ -59,7 +59,7 @@ def train_maskrcnn_baseline(args):
     print("🚀 Training Mask R-CNN baseline...")
     
     # Initialize Mask R-CNN model
-    maskrcnn = MaskRCNNBaseline(num_classes=1, device=args.device)
+    maskrcnn = MaskRCNNBaseline(num_classes=2, device=args.device)
     maskrcnn.load_model()
     
     # Prepare dataset if needed

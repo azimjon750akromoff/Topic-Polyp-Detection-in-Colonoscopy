@@ -1,0 +1,18 @@
+{
+  "YOLOv8": {
+    "map50": 0.3368055555555556,
+    "map50_95": 0.31340455840455844,
+    "map75": 0.29791666666666666,
+    "num_images": 2,
+    "total_predictions": 600,
+    "total_ground_truths": 2
+  },
+  "MaskRCNN": {
+    "map50": 0.014853395061728395,
+    "map50_95": 0.004207561728395062,
+    "map75": 0.0,
+    "num_images": 2,
+    "total_predictions": 200,
+    "total_ground_truths": 2
+  }
+}

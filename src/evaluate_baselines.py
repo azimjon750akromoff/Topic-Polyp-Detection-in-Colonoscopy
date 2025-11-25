@@ -9,6 +9,7 @@ import pandas as pd
 
 from src.models.yolo_baseline import YOLOv8Baseline
 from src.models.maskrcnn_baseline import MaskRCNNBaseline, PolypDataset
+from ultralytics import YOLO
 
 
 class DetectionEvaluator:
@@ -78,7 +79,15 @@ class DetectionEvaluator:
                 })
             
             # Add predictions
-            for pred_box, confidence in pred_boxes:
+            for pred_data in pred_boxes:
+                if len(pred_data) == 5:
+                    x1, y1, x2, y2, confidence = pred_data
+                    pred_box = [x1, y1, x2, y2]
+                else:
+                    # Handle different formats if needed
+                    pred_box = pred_data[:-1] if len(pred_data) > 4 else pred_data[:4]
+                    confidence = pred_data[-1] if len(pred_data) > 4 else 1.0
+                
                 all_detections.append({
                     'image_idx': img_idx,
                     'box': pred_box,
@@ -182,8 +191,8 @@ class DetectionEvaluator:
                             
                             gt_boxes.append([x1, y1, x2, y2])
             
-            # Get predictions
-            results = model.predict(str(img_path), conf=0.25)
+            # Get predictions - use very low confidence threshold for 5-shot models
+            results = model.predict(str(img_path), conf=0.001)
             pred_boxes = []
             
             for result in results:
@@ -244,8 +253,8 @@ class DetectionEvaluator:
                 gt_boxes = gt_target['boxes'].cpu().numpy().tolist()
                 targets.append(gt_boxes)
                 
-                # Get predictions
-                pred = model.predict(image)
+                # Get predictions - use very low confidence threshold for 5-shot models
+                pred = model.predict(image, confidence=0.001)
                 pred_boxes = []
                 
                 if len(pred['boxes']) > 0:
@@ -331,10 +340,18 @@ def evaluate_all_models(args):
         yolo = YOLOv8Baseline()
         yolo.load_model()
         
-        # Load best model if available
-        best_model_path = 'experiments/checkpoints/yolov8n_5shot/best.pt'
-        if Path(best_model_path).exists():
-            yolo.model = YOLO(best_model_path)
+        # Load best trained model if available
+        # Look for the most recent trained model
+        runs_dir = Path('runs/detect')
+        if runs_dir.exists():
+            # Find the most recent yolov8n_5shot* directory
+            model_dirs = [d for d in runs_dir.iterdir() if d.name.startswith('yolov8n_5shot') and d.is_dir()]
+            if model_dirs:
+                latest_dir = max(model_dirs, key=lambda x: x.stat().st_mtime)
+                best_model_path = latest_dir / 'weights' / 'best.pt'
+                if best_model_path.exists():
+                    print(f"Loading trained model from {best_model_path}")
+                    yolo.model = YOLO(str(best_model_path))
         
         metrics, predictions, targets = evaluator.evaluate_yolo_model(yolo, args.data_dir)
         results['YOLOv8'] = metrics
@@ -352,13 +369,18 @@ def evaluate_all_models(args):
     # Evaluate Mask R-CNN
     try:
         print("\n📊 Evaluating Mask R-CNN...")
-        maskrcnn = MaskRCNNBaseline()
+        maskrcnn = MaskRCNNBaseline(num_classes=2)
         maskrcnn.load_model()
         
-        # Load best model if available
+        # Load best model if available (handle class mismatch gracefully)
         best_model_path = 'experiments/checkpoints/maskrcnn_5shot_best.pt'
         if Path(best_model_path).exists():
-            maskrcnn.model.load_state_dict(torch.load(best_model_path, map_location=maskrcnn.device))
+            try:
+                maskrcnn.model.load_state_dict(torch.load(best_model_path, map_location=maskrcnn.device))
+                print(f"✅ Loaded trained Mask R-CNN from {best_model_path}")
+            except Exception as e:
+                print(f"⚠️  Could not load trained model (class mismatch): {e}")
+                print("Using pretrained model instead")
         
         # Create validation dataset
         val_dataset = PolypDataset(

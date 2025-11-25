@@ -27,7 +27,7 @@ class MaskRCNNBaseline:
         self.num_classes = num_classes
         self.device = device if device != 'auto' else ('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = None
-        self.class_names = ['polyp']
+        self.class_names = ['polyp', 'non_polyp']
         
     def load_model(self):
         """Load pretrained Mask R-CNN model"""
@@ -88,16 +88,18 @@ class MaskRCNNBaseline:
     def get_transform(self, train=True):
         """Get data transforms"""
         from torchvision.transforms import v2 as T
+        import torchvision.transforms as transforms_legacy
         
-        transforms = []
+        transform_list = []
         if train:
-            transforms.append(T.RandomHorizontalFlip(0.5))
-            transforms.append(T.RandomVerticalFlip(0.5))
+            transform_list.append(T.RandomHorizontalFlip(0.5))
+            transform_list.append(T.RandomVerticalFlip(0.5))
         
-        transforms.append(T.ToDtype(torch.float, scale=True))
-        transforms.append(T.ToPureTensor())
+        # Convert PIL to tensor and normalize
+        transform_list.append(transforms_legacy.ToTensor())
+        transform_list.append(transforms_legacy.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
         
-        return T.Compose(transforms)
+        return T.Compose(transform_list)
         
     def train_5shot(self, train_dataset, val_dataset, epochs=100, lr=0.001, batch_size=2):
         """
@@ -218,7 +220,7 @@ class MaskRCNNBaseline:
         Make predictions on single image
         
         Args:
-            image: PIL Image or tensor
+            image: PIL Image, tensor, or file path
             confidence: Confidence threshold
         """
         if self.model is None:
@@ -226,25 +228,51 @@ class MaskRCNNBaseline:
             
         self.model.eval()
         with torch.no_grad():
-            if isinstance(image, Image.Image):
-                # Convert PIL Image to tensor
+            # Handle different input types
+            if isinstance(image, str):
+                # File path
+                img = Image.open(image).convert("RGB")
+                transform = self.get_transform(train=False)
+                image = transform(img)
+            elif isinstance(image, Image.Image):
+                # PIL Image
                 transform = self.get_transform(train=False)
                 image = transform(image)
+            elif isinstance(image, torch.Tensor):
+                # Already a tensor - ensure it's in the right format
+                if image.dim() == 3:
+                    image = image.unsqueeze(0)
+                # Move to device if not already
+                image = image.to(self.device)
             
-            image = image.unsqueeze(0).to(self.device)
+            # Ensure image is on device and has batch dimension
+            if image.device != self.device:
+                image = image.to(self.device)
+            if image.dim() == 3:
+                image = image.unsqueeze(0)
+                
             predictions = self.model(image)
             
             # Filter by confidence
             pred = predictions[0]
-            scores = pred['scores']
-            keep = scores > confidence
-            
-            filtered_pred = {
-                'boxes': pred['boxes'][keep],
-                'labels': pred['labels'][keep],
-                'scores': pred['scores'][keep],
-                'masks': pred['masks'][keep]
-            }
+            if len(pred['scores']) > 0:
+                scores = pred['scores']
+                keep = scores > confidence
+                
+                filtered_pred = {
+                    'boxes': pred['boxes'][keep],
+                    'labels': pred['labels'][keep],
+                    'scores': pred['scores'][keep],
+                    'masks': pred['masks'][keep] if 'masks' in pred else torch.tensor([])
+                }
+            else:
+                # No predictions
+                filtered_pred = {
+                    'boxes': torch.tensor([]).reshape(0, 4).to(self.device),
+                    'labels': torch.tensor([], dtype=torch.int64).to(self.device),
+                    'scores': torch.tensor([]).to(self.device),
+                    'masks': torch.tensor([]).to(self.device)
+                }
             
             return filtered_pred
             
@@ -270,19 +298,57 @@ class PolypDataset(torch.utils.data.Dataset):
         img_path = self.images[idx]
         img = Image.open(img_path).convert("RGB")
         
-        # TODO: Load actual annotations
-        # For now, create dummy annotation
-        boxes = torch.tensor([[10, 10, 100, 100]], dtype=torch.float32)
-        labels = torch.tensor([1], dtype=torch.int64)
-        masks = torch.tensor([[[1, 1], [1, 1]]], dtype=torch.uint8)
+        # Get image size for converting relative coordinates
+        img_w, img_h = img.size
+        
+        # Load YOLO format label if it exists
+        label_path = img_path.parent.parent / 'labels' / (img_path.stem + '.txt')
+        boxes = []
+        labels = []
+        masks = []
+        
+        if label_path.exists():
+            with open(label_path, 'r') as f:
+                for line in f:
+                    parts = line.strip().split()
+                    if len(parts) >= 5:
+                        class_id, x_center, y_center, width, height = map(float, parts[:5])
+                        
+                        # Convert YOLO format to absolute coordinates
+                        x1 = (x_center - width/2) * img_w
+                        y1 = (y_center - height/2) * img_h
+                        x2 = (x_center + width/2) * img_w
+                        y2 = (y_center + height/2) * img_h
+                        
+                        boxes.append([x1, y1, x2, y2])
+                        labels.append(int(class_id))  # Keep class ID the same (0=polyp, 1=non_polyp)
+                        
+                        # Create a simple rectangular mask
+                        mask_w = int((x2 - x1))
+                        mask_h = int((y2 - y1))
+                        if mask_w > 0 and mask_h > 0:
+                            mask = np.zeros((int(img_h), int(img_w)), dtype=np.uint8)
+                            mask[int(y1):int(y2), int(x1):int(x2)] = 1
+                            masks.append(mask)
+        
+        # Convert to tensors
+        if len(boxes) == 0:
+            # No annotations - create empty tensors
+            boxes = torch.zeros((0, 4), dtype=torch.float32)
+            labels = torch.zeros((0,), dtype=torch.int64)
+            masks = torch.zeros((0, int(img_h), int(img_w)), dtype=torch.uint8)
+        else:
+            boxes = torch.tensor(boxes, dtype=torch.float32)
+            labels = torch.tensor(labels, dtype=torch.int64)
+            masks = torch.tensor(np.array(masks), dtype=torch.uint8)
         
         target = {
             'boxes': boxes,
             'labels': labels,
             'masks': masks,
             'image_id': torch.tensor([idx]),
-            'area': (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]),
-            'iscrowd': torch.zeros((1,), dtype=torch.int64)
+            'area': (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]) if len(boxes) > 0 else torch.zeros((0,), dtype=torch.float32),
+            'iscrowd': torch.zeros((len(boxes),), dtype=torch.int64)
         }
         
         if self.transforms is not None:
