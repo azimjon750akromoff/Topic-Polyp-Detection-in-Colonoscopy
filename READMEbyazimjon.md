@@ -147,7 +147,7 @@ transform_list.append(transforms_legacy.Normalize(mean=[0.485, 0.456, 0.406], st
 2. **Class ID Mapping**:
 ```python
 # Fixed to keep original class IDs
-labels.append(int(class_id))  # 0=polyp, 1=non_polyp
+labels.append(int(class_id))  # 0=images, 1=masks
 ```
 
 3. **Confidence Thresholds**:

@@ -15,12 +15,12 @@ class PolypDataset(Dataset):
             transforms.ToTensor(),
         ])
 
-        for label in ["polyp", "non_polyp"]:
+        for label in ["images", "masks"]:
             folder = os.path.join(root_dir, label)
             for f in os.listdir(folder):
                 if f.lower().endswith((".jpg", ".png", ".jpeg", ".tif", ".tiff")):
                     self.images.append(os.path.join(folder, f))
-                    self.labels.append(1 if label == "polyp" else 0)
+                    self.labels.append(1 if label == "images" else 0)
 
     def __len__(self):
         return len(self.images)

@@ -1,8 +1,8 @@
 task: detect
 mode: real_dataset
 model: yolov8n.pt
-data: data/5shot_real/dataset.yaml
-epochs: 10
+data: data\5shot_real\dataset.yaml
+epochs: 20
 time: null
 patience: 20
 batch: 4
@@ -13,7 +13,7 @@ cache: false
 device: cpu
 workers: 8
 project: null
-name: yolov8n_5shot11
+name: yolov8n_5shot14
 exist_ok: false
 pretrained: true
 optimizer: auto
@@ -103,4 +103,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: /Users/azimjonakromov/Desktop/Sanjar + me - Computer vision/Topic-5-Few-Shot-Polyp-Detection-in-Colonoscopy/runs/detect/yolov8n_5shot11
+save_dir: C:\Users\Air\PycharmProjects\Topic-5-Few-Shot-Polyp-Detection-in-Colonoscopy\runs\detect\yolov8n_5shot14

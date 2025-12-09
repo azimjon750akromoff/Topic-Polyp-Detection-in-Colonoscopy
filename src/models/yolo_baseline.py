@@ -7,7 +7,7 @@ from pathlib import Path
 
 class YOLOv8Baseline:
     """
-    YOLOv8 baseline model for 5-shot polyp detection
+    YOLOv8 baseline model for 5-shot images detection
     """
     
     def __init__(self, model_size='n', device='auto'):
@@ -21,7 +21,7 @@ class YOLOv8Baseline:
         self.model_size = model_size
         self.device = device if device != 'auto' else ('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = None
-        self.class_names = ['polyp']
+        self.class_names = ['images']
         
     def load_model(self):
         """Load pretrained YOLOv8 model"""
@@ -33,22 +33,22 @@ class YOLOv8Baseline:
         Prepare YOLO format dataset from 5-shot data
         
         Args:
-            data_dir: Directory containing polyp images and annotations
+            data_dir: Directory containing images images and annotations
             n_shot: Number of examples per class (5-shot)
         """
         # Create YOLO dataset structure
         yolo_data_dir = Path(data_dir) / 'yolo_format'
         yolo_data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create train/val splits
-        for split in ['train', 'val']:
+        # Create real_dataset/val splits
+        for split in ['real_dataset', 'val']:
             (yolo_data_dir / split / 'images').mkdir(parents=True, exist_ok=True)
             (yolo_data_dir / split / 'labels').mkdir(parents=True, exist_ok=True)
         
         # Create dataset.yaml
         yaml_content = f"""
 path: {yolo_data_dir.absolute()}
-train: train/images
+real_dataset: real_dataset/images
 val: val/images
 
 nc: 1
@@ -168,4 +168,4 @@ if __name__ == "__main__":
     # Evaluate
     # metrics = yolo.evaluate(data_yaml)
     
-    print("YOLOv8 baseline ready for 5-shot polyp detection!")
+    print("YOLOv8 baseline ready for 5-shot images detection!")

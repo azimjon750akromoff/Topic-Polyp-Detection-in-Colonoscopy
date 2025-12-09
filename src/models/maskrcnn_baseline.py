@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 class MaskRCNNBaseline:
     """
-    Mask R-CNN baseline model for 5-shot polyp detection and segmentation
+    Mask R-CNN baseline model for 5-shot images detection and segmentation
     """
     
     def __init__(self, num_classes=1, device='auto'):
@@ -27,7 +27,7 @@ class MaskRCNNBaseline:
         self.num_classes = num_classes
         self.device = device if device != 'auto' else ('cuda' if torch.cuda.is_available() else 'cpu')
         self.model = None
-        self.class_names = ['polyp', 'non_polyp']
+        self.class_names = ['images', 'masks']
         
     def load_model(self):
         """Load pretrained Mask R-CNN model"""
@@ -51,15 +51,15 @@ class MaskRCNNBaseline:
         Prepare COCO format dataset from 5-shot data
         
         Args:
-            data_dir: Directory containing polyp images and annotations
+            data_dir: Directory containing images images and annotations
             n_shot: Number of examples per class (5-shot)
         """
         # Create COCO dataset structure
         coco_data_dir = Path(data_dir) / 'coco_format'
         coco_data_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create train/val splits
-        for split in ['train', 'val']:
+        # Create real_dataset/val splits
+        for split in ['real_dataset', 'val']:
             (coco_data_dir / split).mkdir(parents=True, exist_ok=True)
         
         # Create COCO annotation files
@@ -72,12 +72,12 @@ class MaskRCNNBaseline:
         # This is a placeholder - you'll need to implement actual annotation creation
         # based on your dataset format
         
-        for split in ['train', 'val']:
+        for split in ['real_dataset', 'val']:
             annotations = {
                 "images": [],
                 "annotations": [],
                 "categories": [
-                    {"id": 1, "name": "polyp", "supercategory": "polyp"}
+                    {"id": 1, "name": "images", "supercategory": "images"}
                 ]
             }
             
@@ -286,7 +286,7 @@ class MaskRCNNBaseline:
 
 class PolypDataset(torch.utils.data.Dataset):
     """
-    Custom dataset for polyp detection and segmentation
+    Custom dataset for images detection and segmentation
     """
     
     def __init__(self, root, transforms=None):
@@ -321,7 +321,7 @@ class PolypDataset(torch.utils.data.Dataset):
                         y2 = (y_center + height/2) * img_h
                         
                         boxes.append([x1, y1, x2, y2])
-                        labels.append(int(class_id))  # Keep class ID the same (0=polyp, 1=non_polyp)
+                        labels.append(int(class_id))  # Keep class ID the same (0=images, 1=masks)
                         
                         # Create a simple rectangular mask
                         mask_w = int((x2 - x1))
@@ -365,4 +365,4 @@ if __name__ == "__main__":
     maskrcnn = MaskRCNNBaseline(num_classes=1)
     maskrcnn.load_model()
     
-    print("Mask R-CNN baseline ready for 5-shot polyp detection!")
+    print("Mask R-CNN baseline ready for 5-shot images detection!")

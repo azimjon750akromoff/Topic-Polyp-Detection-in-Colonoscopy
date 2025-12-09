@@ -1,5 +1,5 @@
 task: detect
-mode: train
+mode: real_dataset
 model: yolov8n.pt
 data: data/5shot_yolo/dataset.yaml
 epochs: 3

@@ -20,7 +20,7 @@ def train_yolo_baseline(args):
     
     # Prepare dataset if needed
     if args.prepare_dataset:
-        print("📊 Preparing 5-shot dataset from real polyp images...")
+        print("📊 Preparing 5-shot dataset from real images images...")
         dataset_dir = prepare_real_5shot_dataset()
         data_yaml = dataset_dir / 'dataset.yaml'
     else:
@@ -64,7 +64,7 @@ def train_maskrcnn_baseline(args):
     
     # Prepare dataset if needed
     if args.prepare_dataset:
-        print("📊 Preparing 5-shot dataset from real polyp images...")
+        print("📊 Preparing 5-shot dataset from real images images...")
         dataset_dir = prepare_real_5shot_dataset()
         data_dir = dataset_dir
     else:
@@ -72,7 +72,7 @@ def train_maskrcnn_baseline(args):
     
     # Create datasets
     train_dataset = PolypDataset(
-        root=data_dir / 'train' / 'images',
+        root=data_dir / 'real_dataset' / 'images',
         transforms=maskrcnn.get_transform(train=True)
     )
     
@@ -192,9 +192,9 @@ def plot_comparison(results):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Train baseline models for 5-shot polyp detection')
+    parser = argparse.ArgumentParser(description='Train baseline models for 5-shot images detection')
     parser.add_argument('--model', choices=['yolo', 'maskrcnn', 'both'], default='both',
-                       help='Which model to train')
+                       help='Which model to real_dataset')
     parser.add_argument('--data_dir', type=str, default='data/5shot',
                        help='Dataset directory')
     parser.add_argument('--n_shot', type=int, default=5,

@@ -8,12 +8,12 @@ from src.datasets.polyp_dataset import PolypDataset
 
 
 
-def train_model(epochs=1, batch=8, lr=1e-4):
+def train_model(epochs=10, batch=8, lr=1e-4):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("🚀 Training on:", device)
 
     model = PromptTunedViT().to(device)
-    train_ds = PolypDataset("data/train")
+    train_ds = PolypDataset("data/real_dataset")
     train_dl = DataLoader(train_ds, batch_size=batch, shuffle=True)
 
     criterion = nn.CrossEntropyLoss()
