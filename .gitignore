@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
 # Virtual environment
 .venv/
@@ -9,23 +10,47 @@ env/
 venv/
 
 # Data folders (large datasets)
-data/
-CVC-ClinicDB/
-kvasir-dataset-v2/
+data/**/*.{png,jpg,jpeg,tif,tiff}
+datasets/**/*.{png,jpg,jpeg,tif,tiff}
+real_dataset/**/*.{png,jpg,jpeg,tif,tiff}
+full_real/**/*.{png,jpg,jpeg,tif,tiff}
+
+CVC-ClinicDB/**/*.{png,jpg,jpeg,tif,tiff}
+kvasir-dataset-v2/**/*.{png,jpg,jpeg,tif,tiff}
+Kvasir-SEG/**/*.{png,jpg,jpeg,tif,tiff}
+CVC-ColonDB/**/*.{png,jpg,jpeg,tif,tiff}
 
 # Experiment outputs
 experiments/checkpoints/
 *.pt
+*.pth
+*.ckpt
 
-# Images (dataset), but sample_images is allowed
+!experiments/results/
+!experiments/results/**
+!experiments/results/**/*.{png,jpg,jpeg,tif,tiff}
+
+!runs/
+!runs/detect/
+!runs/detect/**
+!runs/detect/**/*.{png,jpg,jpeg,tif,tiff}
+
+# Images (dataset)
 *.tif
 *.tiff
 *.png
 *.jpg
 
-# Allow sample images folder
-!sample_images/*.jpg
+# BUT keep sample_images
+!sample_images/
 !sample_images/*.png
+!sample_images/*.jpg
+!sample_images/*.jpeg
+
+# ALSO keep results images (visualizations/gradcam)
+!experiments/results/**/*.png
+!experiments/results/**/*.jpg
+!experiments/results/**/*.jpeg
 
 # Jupyter
 .ipynb_checkpoints/
@@ -33,3 +58,12 @@ experiments/checkpoints/
 # IDE
 .idea/
 .vscode/
+*.code-workspace
+
+# LOGS
+
+*.log
+tmp/
+temp/
+cache/
+outputs/

@@ -1,0 +1,6 @@
+
+path: C:\Users\Air\PycharmProjects\Topic-5-Few-Shot-Polyp-Detection-in-Colonoscopy\data\full_real
+train: train/images
+val: val/images
+nc: 1
+names: ['polyp']
