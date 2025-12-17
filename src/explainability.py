@@ -1,76 +1,90 @@
 import torch
+import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-from PIL import Image
+from ultralytics import YOLO
 from torchvision import transforms
-
-from src.models.prompt_vit import PromptTunedViT
-
-
-def generate_cam(model, x):
-    features = None
-
-    def hook(module, inp, out):
-        nonlocal features
-        features = out
-
-    h = model.base_model.blocks[-1].register_forward_hook(hook)
-
-    outputs = model(x)
-    pred = outputs.argmax(1).item()
-
-    model.zero_grad()
-    loss = outputs[0, pred]
-    loss.backward()
-
-    feats = features[0]
-    cams = feats.mean(-1).detach().cpu().numpy()
-
-    side = int(np.sqrt(len(cams) - 1))
-    cam = cams[1:1 + side*side].reshape(side, side)
-    cam = np.maximum(cam, 0)
-    cam_max = cam.max()
-    if cam_max > 0:
-        cam /= cam_max
-
-    h.remove()
-    return cam, pred
+from pathlib import Path
 
 
-def explain(img_path):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+MODEL_PATH = "runs/detect/"src/polyp_detection/full_real_yolov8n/weights/best.pt"
+5/weights/best.pt"
+TEST_IMAGE = "sample_images/example_polyp.jpg"
+SAVE_PATH = "experiments/results/gradcam/gradcam_result.png"
 
-    model = PromptTunedViT()
-    model.load_state_dict(torch.load("experiments/checkpoints/prompt_vit_real.pt", map_location=device))
-    model.to(device).eval()
+# Best Grad-CAM layer
+TARGET_LAYER = "model.15.cv2"
 
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-    ])
 
-    img = Image.open(img_path).convert("RGB")
-    x = transform(img).unsqueeze(0).to(device)
+def yolo_gradcam(model_path, image_path, save_path):
+    print("🔥 Loading YOLOv8 model...")
+    yolo = YOLO(model_path)
+    model = yolo.model
+    model.eval()
 
-    cam, pred = generate_cam(model, x)
+    # Load + preprocess image
+    img_bgr = cv2.imread(str(image_path))
+    img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+    img_resized = cv2.resize(img_rgb, (640, 640))
 
-    cam_img = Image.fromarray(np.uint8(cam * 255))
-    cam_img = cam_img.resize(img.size)
+    transform = transforms.ToTensor()
+    img_t = transform(img_resized).unsqueeze(0)
+    img_t.requires_grad = True
 
-    plt.figure(figsize=(10, 5))
-    plt.subplot(1, 2, 1)
-    plt.title("Original")
-    plt.imshow(img)
-    plt.axis("off")
+    # REGISTER HOOKS
+    activations, gradients = {}, {}
 
-    plt.subplot(1, 2, 2)
-    plt.title("Grad-CAM")
-    plt.imshow(img)
-    plt.imshow(cam_img, cmap="jet", alpha=0.5)
-    plt.axis("off")
+    target_layer = dict(model.named_modules())[TARGET_LAYER]
 
-    plt.show()
+    def forward_hook(m, inp, out):
+        activations["value"] = out
+
+    def backward_hook(m, grad_in, grad_out):
+        gradients["value"] = grad_out[0]
+
+    target_layer.register_forward_hook(forward_hook)
+    target_layer.register_backward_hook(backward_hook)
+
+    # FORWARD
+    print("🔥 Forward pass...")
+    preds = model(img_t)
+
+    # Highest objectness score
+    score = preds[0][..., 4].max()
+    score.backward()
+
+    # BUILD CAM
+    print("🔥 Building Grad-CAM...")
+
+    A = activations["value"].detach()[0]        # (C, H, W)
+    G = gradients["value"].detach()[0]          # (C, H, W)
+
+    weights = G.mean(dim=(1, 2))                # (C,)
+
+    cam = (A * weights[:, None, None]).sum(dim=0)   # (H, W)
+    cam = torch.relu(cam).cpu().numpy()
+
+    # Normalize CAM
+    cam -= cam.min()
+    if cam.max() != 0:
+        cam /= cam.max()
+
+    cam = cv2.resize(cam, (img_bgr.shape[1], img_bgr.shape[0]))
+
+    # ensure (H,W) uint8
+    cam_uint8 = (cam * 255).astype("uint8")
+
+    # Apply colormap
+    heatmap = cv2.applyColorMap(cam_uint8, cv2.COLORMAP_JET)
+
+    # Overlay
+    result = (0.5 * heatmap + 0.5 * img_bgr).astype(np.uint8)
+
+    # Save
+    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(save_path, result)
+
+    print(f"🎉 Grad-CAM saved to: {save_path}")
 
 
 if __name__ == "__main__":
-    explain("sample_images/example_polyp.jpg")
+    yolo_gradcam(MODEL_PATH, TEST_IMAGE, SAVE_PATH)

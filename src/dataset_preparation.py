@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 
 class FiveShotDatasetPreparer:
     """
-    Prepare 5-shot dataset for polyp detection
+    Prepare 5-shot dataset for images detection
     """
     
     def __init__(self, source_dir, output_dir, n_shot=5, seed=42):
@@ -31,17 +31,17 @@ class FiveShotDatasetPreparer:
         np.random.seed(seed)
         
     def create_5shot_splits(self):
-        """Create 5-shot train/val splits"""
+        """Create 5-shot real_dataset/val splits"""
         print(f"🚀 Creating {self.n_shot}-shot dataset...")
         
         # Create output directories
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Find all polyp images
+        # Find all images images
         polyp_images = self._find_polyp_images()
         
         if len(polyp_images) < self.n_shot:
-            raise ValueError(f"Not enough polyp images. Found {len(polyp_images)}, need {self.n_shot}")
+            raise ValueError(f"Not enough images images. Found {len(polyp_images)}, need {self.n_shot}")
         
         # Sample 5-shot training set
         train_images = random.sample(polyp_images, self.n_shot)
@@ -56,35 +56,35 @@ class FiveShotDatasetPreparer:
         print(f"   Val: {len(val_images)} images")
         
         # Copy images and create annotations
-        self._copy_images(train_images, 'train')
+        self._copy_images(train_images, 'real_dataset')
         self._copy_images(val_images, 'val')
         
         # Create YOLO format annotations
-        self._create_yolo_annotations(train_images, 'train')
+        self._create_yolo_annotations(train_images, 'real_dataset')
         self._create_yolo_annotations(val_images, 'val')
         
         # Create COCO format annotations
-        self._create_coco_annotations(train_images, 'train')
+        self._create_coco_annotations(train_images, 'real_dataset')
         self._create_coco_annotations(val_images, 'val')
         
         print("✅ 5-shot dataset created successfully!")
         
     def _find_polyp_images(self):
-        """Find all polyp images in source directory"""
+        """Find all images images in source directory"""
         image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
         polyp_images = []
         
-        # Look in polyp directories
-        for polyp_dir in ['polyp', 'polyps', 'polyp_images']:
+        # Look in images directories
+        for polyp_dir in ['images', 'polyps', 'polyp_images']:
             polyp_path = self.source_dir / polyp_dir
             if polyp_path.exists():
                 for ext in image_extensions:
                     polyp_images.extend(list(polyp_path.glob(f'*{ext}')))
                     polyp_images.extend(list(polyp_path.glob(f'*{ext.upper()}')))
         
-        # If no polyp directory, look for polyp-labeled images
+        # If no images directory, look for images-labeled images
         if not polyp_images:
-            # Look for images with polyp annotations
+            # Look for images with images annotations
             for ext in image_extensions:
                 images = list(self.source_dir.glob(f'*{ext}')) + list(self.source_dir.glob(f'*{ext.upper()}'))
                 for img_path in images:
@@ -94,11 +94,11 @@ class FiveShotDatasetPreparer:
         return polyp_images
         
     def _is_polyp_image(self, img_path):
-        """Check if image contains polyp (based on filename or annotation)"""
+        """Check if image contains images (based on filename or annotation)"""
         filename = img_path.name.lower()
         
-        # Check filename for polyp indicators
-        polyp_keywords = ['polyp', 'cancer', 'lesion', 'tumor']
+        # Check filename for images indicators
+        polyp_keywords = ['images', 'cancer', 'lesion', 'tumor']
         if any(keyword in filename for keyword in polyp_keywords):
             return True
             
@@ -116,14 +116,14 @@ class FiveShotDatasetPreparer:
         return False
         
     def _check_annotation_for_polyp(self, ann_file):
-        """Check annotation file for polyp class"""
+        """Check annotation file for images class"""
         if ann_file.suffix == '.xml':
             try:
                 tree = ET.parse(ann_file)
                 root = tree.getroot()
                 for obj in root.findall('object'):
                     name = obj.find('name')
-                    if name is not None and 'polyp' in name.text.lower():
+                    if name is not None and 'images' in name.text.lower():
                         return True
             except:
                 pass
@@ -135,12 +135,12 @@ class FiveShotDatasetPreparer:
                     # Check COCO format
                     if 'categories' in data:
                         for cat in data['categories']:
-                            if 'polyp' in cat.get('name', '').lower():
+                            if 'images' in cat.get('name', '').lower():
                                 return True
                     # Check other formats
                     if 'annotations' in data:
                         for ann in data['annotations']:
-                            if 'polyp' in str(ann).lower():
+                            if 'images' in str(ann).lower():
                                 return True
             except:
                 pass
@@ -154,7 +154,7 @@ class FiveShotDatasetPreparer:
                         parts = line.strip().split()
                         if len(parts) >= 5:
                             class_id = int(parts[0])
-                            if class_id == 0:  # Assuming class 0 is polyp
+                            if class_id == 0:  # Assuming class 0 is images
                                 return True
             except:
                 pass
@@ -182,7 +182,7 @@ class FiveShotDatasetPreparer:
             with open(label_path, 'w') as f:
                 # Format: class_id x_center y_center width height
                 # Using full image as bounding box for now
-                f.write('0 0.5 0.5 1.0 1.0\n')  # class 0 = polyp
+                f.write('0 0.5 0.5 1.0 1.0\n')  # class 0 = images
                 
     def _create_coco_annotations(self, images, split):
         """Create COCO format annotations"""
@@ -190,7 +190,7 @@ class FiveShotDatasetPreparer:
             "images": [],
             "annotations": [],
             "categories": [
-                {"id": 1, "name": "polyp", "supercategory": "polyp"}
+                {"id": 1, "name": "images", "supercategory": "images"}
             ]
         }
         
@@ -233,13 +233,13 @@ class FiveShotDatasetPreparer:
             
     def create_yolo_dataset_yaml(self):
         """Create YOLO dataset.yaml file"""
-        yaml_content = f"""# YOLO dataset configuration for 5-shot polyp detection
+        yaml_content = f"""# YOLO dataset configuration for 5-shot images detection
 path: {self.output_dir.absolute()}/yolo_format
-train: train/images
+real_dataset: real_dataset/images
 val: val/images
 
 nc: 1
-names: ['polyp']
+names: ['images']
 
 # 5-shot dataset configuration
 n_shot: {self.n_shot}
@@ -255,24 +255,24 @@ seed: {self.seed}
 
 def create_sample_dataset():
     """Create a sample 5-shot dataset for testing"""
-    print("🎨 Creating sample polyp images for testing...")
+    print("🎨 Creating sample images images for testing...")
     
     # Create sample data directory
     sample_dir = Path("data/sample_polyps")
     sample_dir.mkdir(parents=True, exist_ok=True)
     
-    # Create sample polyp images
+    # Create sample images images
     for i in range(20):  # Create 20 sample images
         img = Image.new('RGB', (640, 480), color='rgb(255, 255, 255)')
         draw = ImageDraw.Draw(img)
         
-        # Draw random polyp-like shapes
+        # Draw random images-like shapes
         x1 = random.randint(50, 300)
         y1 = random.randint(50, 200)
         x2 = x1 + random.randint(50, 150)
         y2 = y1 + random.randint(50, 150)
         
-        # Draw polyp (irregular shape)
+        # Draw images (irregular shape)
         draw.ellipse([x1, y1, x2, y2], fill='rgb(200, 100, 100)', outline='rgb(150, 50, 50)')
         
         # Add some texture
@@ -283,7 +283,7 @@ def create_sample_dataset():
         
         img.save(sample_dir / f'polyp_{i:03d}.jpg')
     
-    print(f"✅ Created {len(list(sample_dir.glob('*.jpg')))} sample polyp images")
+    print(f"✅ Created {len(list(sample_dir.glob('*.jpg')))} sample images images")
     return sample_dir
 
 

@@ -25,7 +25,7 @@ class DetectionEvaluator:
             iou_thresholds: IoU thresholds for mAP calculation
         """
         self.iou_thresholds = iou_thresholds
-        self.class_names = ['polyp']
+        self.class_names = ['images']
         
     def calculate_iou(self, box1, box2):
         """
