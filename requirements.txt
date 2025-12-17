@@ -9,4 +9,4 @@ scikit-learn
 jupyter
 ultralytics
 torchmetrics
-detectron2
+
